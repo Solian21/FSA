@@ -102,6 +102,10 @@ for row in sheet.iter_rows(values_only=True):
     if unit is None:
         continue
 
+    # This will set the residents names to DOES NOT EXIST for A BED 2
+    if bed_letter == "A" and bed_number == "2":
+        resident_status = "DOES NOT EXIST"
+
     shared = unit_keys.get(unit, {"FRONT_DOOR": "", "MAIL": "", "GARAGE": ""})
 
     if bed_letter is not None and bed_number is not None:

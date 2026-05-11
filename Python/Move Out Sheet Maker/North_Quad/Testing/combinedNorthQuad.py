@@ -1,4 +1,5 @@
 from openpyxl import load_workbook, Workbook
+import re
 
 
 def read_sheet_to_list(file_path):
@@ -7,75 +8,142 @@ def read_sheet_to_list(file_path):
     return [list(row) for row in sheet.iter_rows(values_only=True)]
 
 
-def build_cleaned_key_list(room_list, max_rows=565):
-    updated_list = []
-    lobby_key_code = ""
-    mail_key_code = ""
+def normalize_room_name(value):
+    if value is None:
+        return ""
 
-    count = 0
+    text = str(value).strip()
+    text = text.replace("\xa0", " ")
+
+    # Converts "224-A" to "224 A"
+    text = re.sub(r"(\d+)-([A-Z])", r"\1 \2", text)
+
+    # Collapse extra spaces
+    text = re.sub(r"\s+", " ", text)
+
+    return text
+
+
+def get_base_room(room_name):
+    """
+    Examples:
+    VISTE-1: 107 Lobby      -> VISTE-1: 107
+    VISTE-1: 107 A Bed 1    -> VISTE-1: 107
+    VISTE-1: 109 D Bed 2    -> VISTE-1: 109
+    """
+    room_name = normalize_room_name(room_name)
+
+    match = re.match(r"^(.*?:\s*\d+)", room_name)
+    if match:
+        return match.group(1).strip()
+
+    return room_name
+
+
+def is_lobby_row(room_name):
+    room_name = normalize_room_name(room_name).lower()
+    return room_name.endswith(" lobby")
+
+
+def is_mail_row(room_name):
+    room_name = normalize_room_name(room_name).lower()
+    return room_name.endswith(" mail") or room_name.endswith(" mailbox")
+
+
+def read_key_log(room_list):
+    """
+    Reads the key log into lookup dictionaries.
+
+    Key log expected:
+    Column A = room/key name
+    Column B = key code
+    """
+    lobby_keys = {}
+    mail_keys = {}
+    room_keys = {}
 
     for line in room_list:
-        if count >= max_rows:
-            break
-
-        if not line or line[0] is None:
-            count += 1
+        if not line or len(line) < 2 or line[0] is None:
             continue
 
-        room_name = str(line[0]).strip()
-        room_key_code = line[1] if len(line) > 1 else None
-        key_log_name = room_name.split()
+        room_name = normalize_room_name(line[0])
+        key_code = line[1]
 
-        if len(key_log_name) > 2 and key_log_name[2] == "Lobby":
-            lobby_key_code = room_key_code
-        elif len(key_log_name) > 3 and key_log_name[3] == "Mailbox":
-            mail_key_code = room_key_code
+        if not room_name or key_code in (None, ""):
+            continue
+
+        base_room = get_base_room(room_name)
+
+        if is_lobby_row(room_name):
+            lobby_keys[base_room] = key_code
+
+        elif is_mail_row(room_name):
+            mail_keys[base_room] = key_code
+
         else:
-            updated_list.append([f"{room_name} Lobby", room_name, "Lobby Key", lobby_key_code])
-            updated_list.append([f"{room_name} Mail", room_name, "Mail Key", mail_key_code])
-            updated_list.append([f"{room_name} Room", room_name, "Room Key", room_key_code])
+            room_keys[room_name] = key_code
 
-        count += 1
-
-    return updated_list
+    return lobby_keys, mail_keys, room_keys
 
 
-def match_residents(occupancy_list, cleaned_list):
-    residents_name_updated = []
+def build_rows_from_occupancy(occupancy_list, lobby_keys, mail_keys, room_keys):
+    """
+    Builds output from occupancy list so nobody is skipped.
 
-    # assume row 0 is headers in occupancy and cleaned sheet
-    for i in range(1, len(occupancy_list)):
+    Occupancy file expected:
+    Column A = room/bed space
+    Column B = resident name
+
+    Assumes row 1 is a header row and data starts on row 2.
+    """
+    final_rows = []
+
+    for i in range(len(occupancy_list)):
         occ_row = occupancy_list[i]
 
-        if not occ_row or len(occ_row) < 2:
+        if not occ_row or len(occ_row) < 1:
             continue
 
-        room_name = occ_row[0]
-        resident_name = occ_row[1]
+        room_space = normalize_room_name(occ_row[0])
+        resident_name = occ_row[1] if len(occ_row) > 1 else ""
 
-        if room_name is None:
+        if not room_space:
             continue
 
-        room_name = str(room_name).strip()
+        base_room = get_base_room(room_space)
 
-        for j in range(len(cleaned_list)):
-            clean_row = cleaned_list[j]
+        lobby_key_code = lobby_keys.get(base_room)
+        mail_key_code = mail_keys.get(base_room)
+        room_key_code = room_keys.get(room_space)
 
-            if not clean_row or len(clean_row) < 4:
-                continue
+        if lobby_key_code:
+            final_rows.append([
+                f"{room_space} Lobby",
+                room_space,
+                "Lobby Key",
+                lobby_key_code,
+                resident_name
+            ])
 
-            clean_room_space = clean_row[1]
+        if mail_key_code:
+            final_rows.append([
+                f"{room_space} Mail",
+                room_space,
+                "Mail Key",
+                mail_key_code,
+                resident_name
+            ])
 
-            if clean_room_space is not None and room_name == str(clean_room_space).strip():
-                residents_name_updated.append([
-                    clean_row[0],   # Full Room Space Description
-                    clean_row[1],   # Room Space
-                    clean_row[2],   # Key Type Description
-                    clean_row[3],   # Key Code
-                    resident_name   # Residents Name
-                ])
+        if room_key_code:
+            final_rows.append([
+                f"{room_space} Room",
+                room_space,
+                "Room Key",
+                room_key_code,
+                resident_name
+            ])
 
-    return residents_name_updated
+    return final_rows
 
 
 def save_to_excel(output_file_path, rows):
@@ -90,6 +158,7 @@ def save_to_excel(output_file_path, rows):
         "Key Code",
         "Residents Name"
     ]
+
     new_sheet.append(headers)
 
     for row in rows:
@@ -101,22 +170,25 @@ def save_to_excel(output_file_path, rows):
 def main():
     key_log_path = input("Enter key log path name: ").strip()
     occupancy_path = input("Enter occupancy path name: ").strip()
-    output_file_path = input("Enter the output file path (e.g., output.xlsx): ").strip()
+    output_file_path = input("Enter the output file path, e.g. output.xlsx: ").strip()
 
-    # Step 1: Read key log and build cleaned list
-    room_list = read_sheet_to_list(key_log_path)
-    cleaned_list = build_cleaned_key_list(room_list)
+    key_log_rows = read_sheet_to_list(key_log_path)
+    occupancy_rows = read_sheet_to_list(occupancy_path)
 
-    # Step 2: Read occupancy and match residents
-    occupancy_list = read_sheet_to_list(occupancy_path)
-    final_rows = match_residents(occupancy_list, cleaned_list)
+    lobby_keys, mail_keys, room_keys = read_key_log(key_log_rows)
 
-    # Print results
+    final_rows = build_rows_from_occupancy(
+        occupancy_rows,
+        lobby_keys,
+        mail_keys,
+        room_keys
+    )
+
     for row in final_rows:
         print(row)
 
-    # Step 3: Save final output
     save_to_excel(output_file_path, final_rows)
+
     print(f"Data successfully saved to {output_file_path}")
 
 

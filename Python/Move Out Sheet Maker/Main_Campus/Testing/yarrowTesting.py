@@ -1,50 +1,222 @@
 from openpyxl import load_workbook, Workbook
+import re
 
 
 def normalize_text(value):
     if value is None:
         return ""
-    return str(value).strip()
+
+    text = str(value).strip()
+    text = text.replace("\xa0", " ")
+
+    # Example: "224-A Bed 2" -> "224 A Bed 2"
+    text = re.sub(r"(\d+)-([A-Za-z])", r"\1 \2", text)
+
+    # Collapse extra spaces
+    text = re.sub(r"\s+", " ", text)
+
+    return text
 
 
 def get_room_name(name):
     """
+    Gets the shared room name.
+
     Examples:
-    'YARH-1: 101 Bed 1' -> 'YARH-1: 101'
-    'YARH-1: 101 Mailbox' -> 'YARH-1: 101'
+    'YARH-1: 101 Bed 1'      -> 'YARH-1: 101'
+    'YARH-1: 101 Mailbox'    -> 'YARH-1: 101'
     """
-    parts = normalize_text(name).split()
+    text = normalize_text(name)
+
+    match = re.match(r"^(.*?:\s*\d+)", text)
+    if match:
+        return match.group(1).strip()
+
+    parts = text.split()
     if len(parts) >= 2:
         return f"{parts[0]} {parts[1]}"
+
     return ""
 
 
 def is_mailbox_row(name):
-    return "Mailbox" in normalize_text(name).split()
+    words = normalize_text(name).lower().split()
+    return "mailbox" in words or "mail" in words
 
 
-def is_bed_row(name):
-    return "Bed" in normalize_text(name).split()
+def is_header_row(room_name, resident_name=""):
+    room_name_lower = normalize_text(room_name).lower()
+    resident_name_lower = normalize_text(resident_name).lower()
+
+    room_headers = {
+        "room",
+        "room space",
+        "space",
+        "bed space",
+        "room/bed",
+        "room bed",
+    }
+
+    resident_headers = {
+        "resident",
+        "resident name",
+        "residents name",
+        "name",
+    }
+
+    return room_name_lower in room_headers or resident_name_lower in resident_headers
 
 
 def load_sheet_as_list(file_path):
     workbook = load_workbook(file_path)
     sheet = workbook.active
+
     data = []
     for row in sheet.iter_rows(values_only=True):
         data.append(list(row))
+
     return data
+
+
+def read_key_log(key_log_list):
+    """
+    Reads the key log and stores available keys.
+
+    Key log expected:
+    Column A = key/room name
+    Column B = key code
+    """
+    mailbox_keys = {}
+    room_keys = {}
+
+    for line in key_log_list:
+        if not line or len(line) < 2:
+            continue
+
+        key_name = normalize_text(line[0])
+        key_code = normalize_text(line[1])
+
+        if not key_name or not key_code:
+            continue
+
+        base_room = get_room_name(key_name)
+
+        if is_mailbox_row(key_name):
+            mailbox_keys[base_room] = key_code
+        else:
+            # Direct room/bed key
+            room_keys[key_name] = key_code
+
+    return mailbox_keys, room_keys
+
+
+def build_output_from_occupancy(
+    occupancy_list,
+    mailbox_keys,
+    room_keys,
+    rooms_with_no_mail_key
+):
+    """
+    Builds output from occupancy so residents/beds are not skipped.
+
+    Occupancy expected:
+    Column A = room/bed space
+    Column B = resident name
+
+    For each occupancy row:
+    - Adds Mail Key if available and not exempt
+    - Adds Room Key if available
+    - Skips whichever key does not exist
+    """
+    final_rows = []
+    missing_mail_keys = []
+    missing_room_keys = []
+
+    for row in occupancy_list:
+        if not row or len(row) < 1:
+            continue
+
+        room_space = normalize_text(row[0])
+        resident_name = normalize_text(row[1]) if len(row) > 1 else ""
+
+        if not room_space:
+            continue
+
+        if is_header_row(room_space, resident_name):
+            continue
+
+        base_room = get_room_name(room_space)
+
+        mailbox_key_code = mailbox_keys.get(base_room, "")
+        room_key_code = room_keys.get(room_space, "")
+
+        # Add Mail Key only if this room is supposed to have one
+        if base_room not in rooms_with_no_mail_key:
+            if mailbox_key_code:
+                final_rows.append([
+                    f"{room_space} Mail",
+                    room_space,
+                    "Mail Key",
+                    mailbox_key_code,
+                    resident_name
+                ])
+            else:
+                missing_mail_keys.append(room_space)
+
+        # Add Room Key only if it exists
+        if room_key_code:
+            final_rows.append([
+                f"{room_space} Room",
+                room_space,
+                "Room Key",
+                room_key_code,
+                resident_name
+            ])
+        else:
+            missing_room_keys.append(room_space)
+
+    return final_rows, missing_mail_keys, missing_room_keys
+
+
+def unique_keep_order(items):
+    seen = set()
+    unique_items = []
+
+    for item in items:
+        if item not in seen:
+            seen.add(item)
+            unique_items.append(item)
+
+    return unique_items
+
+
+def save_to_excel(output_file_path, rows):
+    new_workbook = Workbook()
+    new_sheet = new_workbook.active
+    new_sheet.title = "Updated List"
+
+    headers = [
+        "Full Room Space Description",
+        "Room Space",
+        "Key Type Description",
+        "Key Code",
+        "Residents Name"
+    ]
+
+    new_sheet.append(headers)
+
+    for row in rows:
+        new_sheet.append(row)
+
+    new_workbook.save(output_file_path)
 
 
 def main():
     key_log_path = input("Enter key log path name: ").strip()
     occupancy_path = input("Enter occupancy path name: ").strip()
-    output_file_path = input("Enter the output file path (e.g., output.xlsx): ").strip()
+    output_file_path = input("Enter the output file path, e.g. output.xlsx: ").strip()
 
-    key_log_list = load_sheet_as_list(key_log_path)
-    occupancy_list = load_sheet_as_list(occupancy_path)
-
-    roomWithNoMailKey = {
+    rooms_with_no_mail_key = {
         "YARH-1: 109",
         "YARH-1: 110",
         "YARH-1: 111",
@@ -68,147 +240,36 @@ def main():
         "YARH-3: 326",
     }
 
-    # First pass: collect mailbox keys by room
-    mailbox_keys = {}
-    for line in key_log_list:
-        if not line or len(line) < 2:
-            continue
+    key_log_list = load_sheet_as_list(key_log_path)
+    occupancy_list = load_sheet_as_list(occupancy_path)
 
-        key_name = normalize_text(line[0])
-        key_code = line[1]
+    mailbox_keys, room_keys = read_key_log(key_log_list)
 
-        if not key_name:
-            continue
+    final_rows, missing_mail_keys, missing_room_keys = build_output_from_occupancy(
+        occupancy_list,
+        mailbox_keys,
+        room_keys,
+        rooms_with_no_mail_key
+    )
 
-        if is_mailbox_row(key_name):
-            room_name = get_room_name(key_name)
-            if room_name:
-                mailbox_keys[room_name] = key_code
-
-    # Second pass: build cleaned key rows
-    cleaned_rows = []
-    missing_mail_keys = []
-
-    for line in key_log_list:
-        if not line or len(line) < 2:
-            continue
-
-        key_name = normalize_text(line[0])
-        key_code = line[1]
-
-        if not key_name:
-            continue
-
-        # Skip mailbox source rows in final output
-        if is_mailbox_row(key_name):
-            continue
-
-        if is_bed_row(key_name):
-            room_name = get_room_name(key_name)
-
-            # Add mail key row unless this room is exempt
-            if room_name not in roomWithNoMailKey:
-                mail_key_code = mailbox_keys.get(room_name, "")
-                if mail_key_code == "":
-                    missing_mail_keys.append(key_name)
-
-                cleaned_rows.append([
-                    f"{key_name} Mail",
-                    key_name,
-                    "Mail Key",
-                    mail_key_code
-                ])
-
-            # Add room key row
-            cleaned_rows.append([
-                f"{key_name} Room",
-                key_name,
-                "Room Key",
-                key_code
-            ])
-        else:
-            # Any non-bed, non-mailbox row
-            cleaned_rows.append([
-                key_name,
-                key_name,
-                "Room Key",
-                key_code
-            ])
-
-    # Build occupancy dictionary: room/bed -> resident name
-    occupancy_map = {}
-    for row in occupancy_list:
-        if not row or len(row) < 2:
-            continue
-
-        room_name = normalize_text(row[0])
-        resident_name = normalize_text(row[1])
-
-        if room_name:
-            occupancy_map[room_name] = resident_name
-
-    # Add resident names to cleaned rows
-    residents_name_updated = []
-    unmatched_rooms = []
-
-    for row in cleaned_rows:
-        full_room_space_description = row[0]
-        room_space = normalize_text(row[1])
-        key_type_description = row[2]
-        key_code = row[3]
-        resident_name = occupancy_map.get(room_space, "")
-
-        if resident_name == "":
-            unmatched_rooms.append(room_space)
-
-        residents_name_updated.append([
-            full_room_space_description,
-            room_space,
-            key_type_description,
-            key_code,
-            resident_name
-        ])
-
-    # Remove duplicate unmatched entries while keeping order
-    seen = set()
-    unique_unmatched_rooms = []
-    for room in unmatched_rooms:
-        if room not in seen:
-            seen.add(room)
-            unique_unmatched_rooms.append(room)
-
-    # Print results
-    for row in residents_name_updated:
+    for row in final_rows:
         print(row)
 
+    missing_mail_keys = unique_keep_order(missing_mail_keys)
+    missing_room_keys = unique_keep_order(missing_room_keys)
+
     if missing_mail_keys:
-        print("\nBeds missing a mailbox key:")
+        print("\nRooms/Beds missing a mailbox key:")
         for item in missing_mail_keys:
             print(item)
 
-    if unique_unmatched_rooms:
-        print("\nRooms/Beds with no matching resident found:")
-        for item in unique_unmatched_rooms:
+    if missing_room_keys:
+        print("\nRooms/Beds with no room key found:")
+        for item in missing_room_keys:
             print(item)
 
-    # Save final workbook
-    new_workbook = Workbook()
-    new_sheet = new_workbook.active
-    new_sheet.title = "Updated List"
+    save_to_excel(output_file_path, final_rows)
 
-    headers = [
-        "Full Room Space Description",
-        "Room Space",
-        "Key Type Description",
-        "Key Code",
-        "Residents Name"
-    ]
-    new_sheet.append(headers)
-
-    for row in residents_name_updated:
-        new_sheet.append(row)
-
-    new_workbook.save(output_file_path)
     print(f"\nData successfully saved to {output_file_path}")
 
 
