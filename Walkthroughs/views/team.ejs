@@ -7,7 +7,7 @@
 
   <title>Manage Team</title>
 
-  <%- include('partials/header') %>
+  <%- include('partials/header.ejs') %>
 </head>
 
 <body>
@@ -58,6 +58,7 @@
             <th>Prom/NQ Count</th>
             <th>Main Count</th>
             <th>Available</th>
+            <th>Edit</th>
             <th>Remove</th>
           </tr>
         </thead>
@@ -83,6 +84,13 @@
                 <% } else { %>
                   <span class="badge text-bg-danger">Unavailable</span>
                 <% } %>
+              </td>
+
+              <!-- ✅ NEW EDIT BUTTON -->
+              <td>
+                <a href="/team/edit/<%= person.id %>" class="btn btn-sm btn-outline-primary">
+                  Edit
+                </a>
               </td>
 
               <td>
