@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Walkthrough Scheduler</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <h1>Walkthrough Scheduler</h1>
+  <p><a href="/team">Manage Team Members</a></p>    
+
+  <% if (error) { %>
+    <p style="color: red;"><%= error %></p>
+  <% } %>
+
+  <% if (assignment) { %>
+    <h2>This Week's Assignment</h2>
+
+    <p><strong>Date:</strong> <%= assignment.date %></p>
+
+    <p>
+      <strong>Prom/NQ:</strong>
+      <%= assignment.prom.map(person => person.name).join(" & ") %>
+    </p>
+
+    <p>
+      <strong>Main:</strong>
+      <%= assignment.main.map(person => person.name).join(" & ") %>
+    </p>
+  <% } %>
+
+  <h2>Team Members</h2>
+
+  <table border="1" cellpadding="8">
+    <tr>
+      <th>Name</th>
+      <th>Prom/NQ Count</th>
+      <th>Main Count</th>
+      <th>Available</th>
+      <th>Action</th>
+    </tr>
+
+    <% people.forEach(person => { %>
+      <tr>
+        <td><%= person.name %></td>
+        <td><%= person.promCount %></td>
+        <td><%= person.mainCount %></td>
+        <td>
+          <% if (person.available) { %>
+            ✅
+          <% } else { %>
+            ❌
+          <% } %>
+        </td>
+        <td>
+          <form method="POST" action="/toggle">
+            <input type="hidden" name="id" value="<%= person.id %>">
+            <button type="submit">
+              <%= person.available ? "Set Unavailable" : "Set Available" %>
+            </button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+  </table>
+
+  <br>
+
+  <form method="POST" action="/generate">
+    <button type="submit">Generate Walkers</button>
+  </form>
+
+  <br>
+
+  <form method="POST" action="/reset">
+    <button type="submit" onclick="return confirm('Are you sure you want to reset all counts and history?')">
+      Reset Counters
+    </button>
+  </form>
+
+</body>
+</html>

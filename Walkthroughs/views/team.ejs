@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manage Team</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <h1>Manage Team</h1>
+
+  <p><a href="/">Back to Scheduler</a></p>
+
+  <% if (error) { %>
+    <p style="color: red;"><%= error %></p>
+  <% } %>
+
+  <h2>Add Team Member</h2>
+
+  <form method="POST" action="/team/add">
+    <input type="text" name="name" placeholder="Enter name" required>
+    <button type="submit">Add Member</button>
+  </form>
+
+  <h2>Current Team Members</h2>
+
+  <table border="1" cellpadding="8">
+    <tr>
+      <th>Name</th>
+      <th>Prom/NQ Count</th>
+      <th>Main Count</th>
+      <th>Available</th>
+      <th>Remove</th>
+    </tr>
+
+    <% people.forEach(person => { %>
+      <tr>
+        <td><%= person.name %></td>
+        <td><%= person.promCount %></td>
+        <td><%= person.mainCount %></td>
+        <td><%= person.available ? "✅" : "❌" %></td>
+        <td>
+          <form method="POST" action="/team/delete">
+            <input type="hidden" name="id" value="<%= person.id %>">
+            <button
+              type="submit"
+              onclick="return confirm('Remove <%= person.name %> from the team?')"
+            >
+              Remove
+            </button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+  </table>
+
+</body>
+</html>
