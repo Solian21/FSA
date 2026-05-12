@@ -266,6 +266,60 @@ app.post("/team/delete", requireLogin, async (req, res) => {
   await writeData(data);
   res.redirect("/team");
 });
+app.get("/team/edit/:id", requireLogin, async (req, res) => {
+  const data = await readData();
+  const id = Number(req.params.id);
+
+  const person = data.people.find(person => person.id === id);
+
+  if (!person) {
+    return res.redirect("/team");
+  }
+
+  res.render("edit-person", {
+    person,
+    error: null
+  });
+});
+
+app.post("/team/edit/:id", requireLogin, async (req, res) => {
+  const data = await readData();
+  const id = Number(req.params.id);
+
+  const person = data.people.find(person => person.id === id);
+
+  if (!person) {
+    return res.redirect("/team");
+  }
+
+  const name = req.body.name?.trim();
+  const promCount = Number(req.body.promCount);
+  const mainCount = Number(req.body.mainCount);
+  const available = req.body.available === "on";
+
+  if (!name) {
+    return res.render("edit-person", {
+      person,
+      error: "Name cannot be empty."
+    });
+  }
+
+  if (promCount < 0 || mainCount < 0) {
+    return res.render("edit-person", {
+      person,
+      error: "Counts cannot be negative."
+    });
+  }
+
+  person.name = name;
+  person.promCount = promCount;
+  person.mainCount = mainCount;
+  person.available = available;
+
+  await writeData(data);
+
+  res.redirect("/team");
+});
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

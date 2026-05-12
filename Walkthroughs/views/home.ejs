@@ -26,100 +26,112 @@
       <div class="alert alert-danger w-auto mx-auto" role="alert">
         <%= error %>
       </div>
-      <% } %>
+    <% } %>
 
-        <% if (assignment) { %>
-          <div class="card w-auto mx-auto mb-4 shadow-sm">
-            <div class="card-body">
-              <h2 class="card-title mb-3">This Week's Assignment</h2>
+    <% if (assignment) { %>
+      <div class="card w-auto mx-auto mb-4 shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title mb-3">This Week's Assignment</h2>
 
-              <p class="card-text">
-                <strong>Date:</strong>
-                <%= assignment.date %>
-              </p>
+          <p class="card-text">
+            <strong>Date:</strong>
+            <%= assignment.date %>
+          </p>
 
-              <p class="card-text">
-                <strong>Prom/NQ:</strong>
-                <%= assignment.prom.map(person=> person.name).join(" & ") %>
-              </p>
+          <p class="card-text">
+            <strong>Prom/NQ:</strong>
+            <%= assignment.prom.map(person => person.name).join(" & ") %>
+          </p>
 
-              <p class="card-text">
-                <strong>Main:</strong>
-                <%= assignment.main.map(person=> person.name).join(" & ") %>
-              </p>
-            </div>
-          </div>
-          <% } %>
+          <p class="card-text">
+            <strong>Main:</strong>
+            <%= assignment.main.map(person => person.name).join(" & ") %>
+          </p>
+        </div>
+      </div>
+    <% } %>
 
-            <h2 class="mb-3">Team Members</h2>
+    <h2 class="mb-3">Team Members</h2>
 
-            <div class="table-responsive d-flex justify-content-center">
-              <table class="table table-bordered table-striped table-hover w-auto align-middle">
-                <thead class="table-dark">
-                  <tr>
-                    <th>Name</th>
-                    <th>Prom/NQ Count</th>
-                    <th>Main Count</th>
-                    <th>Available</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
+    <div class="table-responsive d-flex justify-content-center">
+      <table class="table table-bordered table-striped table-hover w-auto align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>Name</th>
+            <th>Prom/NQ Count</th>
+            <th>Main Count</th>
+            <th>Available</th>
+            <th>Availability</th>
+            <th>Edit</th>
+          </tr>
+        </thead>
 
-                <tbody>
-                  <% people.forEach(person=> { %>
-                    <tr>
-                      <td>
-                        <%= person.name %>
-                      </td>
+        <tbody>
+          <% people.forEach(person => { %>
+            <tr>
+              <td>
+                <%= person.name %>
+              </td>
 
-                      <td>
-                        <%= person.promCount %>
-                      </td>
+              <td>
+                <%= person.promCount %>
+              </td>
 
-                      <td>
-                        <%= person.mainCount %>
-                      </td>
+              <td>
+                <%= person.mainCount %>
+              </td>
 
-                      <td>
-                        <% if (person.available) { %>
-                          <span class="badge text-bg-success">Available</span>
-                          <% } else { %>
-                            <span class="badge text-bg-danger">Unavailable</span>
-                            <% } %>
-                      </td>
+              <td>
+                <% if (person.available) { %>
+                  <span class="badge text-bg-success">Available</span>
+                <% } else { %>
+                  <span class="badge text-bg-danger">Unavailable</span>
+                <% } %>
+              </td>
 
-                      <td>
-                        <form method="POST" action="/toggle" class="m-0">
-                          <input type="hidden" name="id" value="<%= person.id %>">
+              <td>
+                <form method="POST" action="/toggle" class="m-0">
+                  <input type="hidden" name="id" value="<%= person.id %>">
 
-                          <button type="submit"
-                            class="btn btn-sm <%= person.available ? 'btn-outline-danger' : 'btn-outline-success' %>">
-                            <%= person.available ? "Set Unavailable" : "Set Available" %>
-                          </button>
-                        </form>
-                      </td>
-                    </tr>
-                    <% }) %>
-                </tbody>
-              </table>
-            </div>
+                  <button
+                    type="submit"
+                    class="btn btn-sm <%= person.available ? 'btn-outline-danger' : 'btn-outline-success' %>"
+                  >
+                    <%= person.available ? "Set Unavailable" : "Set Available" %>
+                  </button>
+                </form>
+              </td>
 
-            <div class="mt-4 d-flex justify-content-center gap-3 flex-wrap">
+              <td>
+                <a href="/team/edit/<%= person.id %>" class="btn btn-sm btn-outline-primary">
+                  Edit
+                </a>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
 
-              <form method="POST" action="/generate">
-                <button type="submit" class="btn btn-primary">
-                  Generate Walkers
-                </button>
-              </form>
+    <div class="mt-4 d-flex justify-content-center gap-3 flex-wrap">
 
-              <form method="POST" action="/reset">
-                <button type="submit" class="btn btn-outline-danger"
-                  onclick="return confirm('Are you sure you want to reset all counts and history?')">
-                  Reset Counters
-                </button>
-              </form>
+      <form method="POST" action="/generate">
+        <button type="submit" class="btn btn-primary">
+          Generate Walkers
+        </button>
+      </form>
 
-            </div>
+      <form method="POST" action="/reset">
+        <button
+          type="submit"
+          class="btn btn-outline-danger"
+          onclick="return confirm('Are you sure you want to reset all counts and history?')"
+        >
+          Reset Counters
+        </button>
+      </form>
+
+    </div>
 
   </div>
 
