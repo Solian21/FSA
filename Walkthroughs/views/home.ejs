@@ -1,82 +1,130 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Walkthrough Scheduler</title>
-  <link rel="stylesheet" href="/style.css">
+
+  <%- include('partials/header') %>
 </head>
+
 <body>
 
-  <h1>Walkthrough Scheduler</h1>
-  <p><a href="/team">Manage Team Members</a></p>    
+  <div class="container py-5 text-center">
 
-  <% if (error) { %>
-    <p style="color: red;"><%= error %></p>
-  <% } %>
+    <h1 class="mb-3">Walkthrough Scheduler</h1>
 
-  <% if (assignment) { %>
-    <h2>This Week's Assignment</h2>
-
-    <p><strong>Date:</strong> <%= assignment.date %></p>
-
-    <p>
-      <strong>Prom/NQ:</strong>
-      <%= assignment.prom.map(person => person.name).join(" & ") %>
+    <p class="mb-4">
+      <a href="/team" class="btn btn-outline-primary">
+        Manage Team Members
+      </a>
     </p>
 
-    <p>
-      <strong>Main:</strong>
-      <%= assignment.main.map(person => person.name).join(" & ") %>
-    </p>
-  <% } %>
+    <% if (error) { %>
+      <div class="alert alert-danger w-auto mx-auto" role="alert">
+        <%= error %>
+      </div>
+      <% } %>
 
-  <h2>Team Members</h2>
+        <% if (assignment) { %>
+          <div class="card w-auto mx-auto mb-4 shadow-sm">
+            <div class="card-body">
+              <h2 class="card-title mb-3">This Week's Assignment</h2>
 
-  <table border="1" cellpadding="8">
-    <tr>
-      <th>Name</th>
-      <th>Prom/NQ Count</th>
-      <th>Main Count</th>
-      <th>Available</th>
-      <th>Action</th>
-    </tr>
+              <p class="card-text">
+                <strong>Date:</strong>
+                <%= assignment.date %>
+              </p>
 
-    <% people.forEach(person => { %>
-      <tr>
-        <td><%= person.name %></td>
-        <td><%= person.promCount %></td>
-        <td><%= person.mainCount %></td>
-        <td>
-          <% if (person.available) { %>
-            ✅
-          <% } else { %>
-            ❌
+              <p class="card-text">
+                <strong>Prom/NQ:</strong>
+                <%= assignment.prom.map(person=> person.name).join(" & ") %>
+              </p>
+
+              <p class="card-text">
+                <strong>Main:</strong>
+                <%= assignment.main.map(person=> person.name).join(" & ") %>
+              </p>
+            </div>
+          </div>
           <% } %>
-        </td>
-        <td>
-          <form method="POST" action="/toggle">
-            <input type="hidden" name="id" value="<%= person.id %>">
-            <button type="submit">
-              <%= person.available ? "Set Unavailable" : "Set Available" %>
-            </button>
-          </form>
-        </td>
-      </tr>
-    <% }) %>
-  </table>
 
-  <br>
+            <h2 class="mb-3">Team Members</h2>
 
-  <form method="POST" action="/generate">
-    <button type="submit">Generate Walkers</button>
-  </form>
+            <div class="table-responsive d-flex justify-content-center">
+              <table class="table table-bordered table-striped table-hover w-auto align-middle">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Name</th>
+                    <th>Prom/NQ Count</th>
+                    <th>Main Count</th>
+                    <th>Available</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
 
-  <br>
+                <tbody>
+                  <% people.forEach(person=> { %>
+                    <tr>
+                      <td>
+                        <%= person.name %>
+                      </td>
 
-  <form method="POST" action="/reset">
-    <button type="submit" onclick="return confirm('Are you sure you want to reset all counts and history?')">
-      Reset Counters
-    </button>
-  </form>
+                      <td>
+                        <%= person.promCount %>
+                      </td>
+
+                      <td>
+                        <%= person.mainCount %>
+                      </td>
+
+                      <td>
+                        <% if (person.available) { %>
+                          <span class="badge text-bg-success">Available</span>
+                          <% } else { %>
+                            <span class="badge text-bg-danger">Unavailable</span>
+                            <% } %>
+                      </td>
+
+                      <td>
+                        <form method="POST" action="/toggle" class="m-0">
+                          <input type="hidden" name="id" value="<%= person.id %>">
+
+                          <button type="submit"
+                            class="btn btn-sm <%= person.available ? 'btn-outline-danger' : 'btn-outline-success' %>">
+                            <%= person.available ? "Set Unavailable" : "Set Available" %>
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="mt-4 d-flex justify-content-center gap-3 flex-wrap">
+
+              <form method="POST" action="/generate">
+                <button type="submit" class="btn btn-primary">
+                  Generate Walkers
+                </button>
+              </form>
+
+              <form method="POST" action="/reset">
+                <button type="submit" class="btn btn-outline-danger"
+                  onclick="return confirm('Are you sure you want to reset all counts and history?')">
+                  Reset Counters
+                </button>
+              </form>
+
+            </div>
+
+  </div>
+
+  <%- include('partials/footer') %>
 
 </body>
+
 </html>

@@ -1,7 +1,9 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
+import session from "express-session";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,12 +12,36 @@ const app = express();
 const PORT = 3000;
 const DATA_FILE = path.join(__dirname, "data.json");
 
+const SITE_PASSWORD = process.env.PASSWORD;
+const SESSION_SECRET = process.env.SESSION_SECRET || "backup-secret";
+
+if (!SITE_PASSWORD) {
+  console.error("Missing PASSWORD in .env file");
+  process.exit(1);
+}
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+app.use(
+  session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false
+  })
+);
+
+function requireLogin(req, res, next) {
+  if (req.session.loggedIn) {
+    return next();
+  }
+
+  res.redirect("/login");
+}
 
 async function readData() {
   const raw = await fs.readFile(DATA_FILE, "utf-8");
@@ -48,7 +74,40 @@ function pickLowestRandom(people, countKey, amountNeeded) {
   return selected.slice(0, amountNeeded);
 }
 
-app.get("/", async (req, res) => {
+// Login page
+app.get("/login", (req, res) => {
+  if (req.session.loggedIn) {
+    return res.redirect("/");
+  }
+
+  res.render("login", {
+    error: null
+  });
+});
+
+// Login form submit
+app.post("/login", (req, res) => {
+  const password = req.body.password?.trim();
+
+  if (password === SITE_PASSWORD) {
+    req.session.loggedIn = true;
+    return res.redirect("/");
+  }
+
+  res.render("login", {
+    error: "Incorrect password. Please try again."
+  });
+});
+
+// Logout
+app.post("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/login");
+  });
+});
+
+// Protected home page
+app.get("/", requireLogin, async (req, res) => {
   const data = await readData();
 
   res.render("home", {
@@ -58,7 +117,7 @@ app.get("/", async (req, res) => {
   });
 });
 
-app.post("/toggle", async (req, res) => {
+app.post("/toggle", requireLogin, async (req, res) => {
   const id = Number(req.body.id);
   const data = await readData();
 
@@ -72,7 +131,7 @@ app.post("/toggle", async (req, res) => {
   res.redirect("/");
 });
 
-app.post("/generate", async (req, res) => {
+app.post("/generate", requireLogin, async (req, res) => {
   const data = await readData();
 
   const lastAssignmentPeople = [
@@ -145,7 +204,7 @@ app.post("/generate", async (req, res) => {
   });
 });
 
-app.post("/reset", async (req, res) => {
+app.post("/reset", requireLogin, async (req, res) => {
   const data = await readData();
 
   data.people.forEach(person => {
@@ -161,7 +220,7 @@ app.post("/reset", async (req, res) => {
   res.redirect("/");
 });
 
-app.get("/team", async (req, res) => {
+app.get("/team", requireLogin, async (req, res) => {
   const data = await readData();
 
   res.render("team", {
@@ -170,7 +229,7 @@ app.get("/team", async (req, res) => {
   });
 });
 
-app.post("/team/add", async (req, res) => {
+app.post("/team/add", requireLogin, async (req, res) => {
   const data = await readData();
   const name = req.body.name.trim();
 
@@ -198,7 +257,7 @@ app.post("/team/add", async (req, res) => {
   res.redirect("/team");
 });
 
-app.post("/team/delete", async (req, res) => {
+app.post("/team/delete", requireLogin, async (req, res) => {
   const data = await readData();
   const id = Number(req.body.id);
 
