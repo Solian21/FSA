@@ -40,6 +40,31 @@ def get_base_room(room_name):
     return room_name
 
 
+def get_room_group(room_name):
+    """
+    Keeps the letter when a room has A/B/C/D spaces.
+
+    Examples:
+    VISTE-1: 107 A Bed 1    -> VISTE-1: 107 A
+    VISTE-1: 107 C Mail     -> VISTE-1: 107 C
+    VISTE-1: 107 Mail       -> VISTE-1: 107
+    VISTE-1: 107 Lobby      -> VISTE-1: 107
+    """
+    room_name = normalize_room_name(room_name)
+
+    match = re.match(r"^(.*?:\s*\d+)(?:\s+([A-Z]))?", room_name)
+    if match:
+        base_room = match.group(1).strip()
+        letter = match.group(2)
+
+        if letter:
+            return f"{base_room} {letter}"
+
+        return base_room
+
+    return room_name
+
+
 def is_lobby_row(room_name):
     room_name = normalize_room_name(room_name).lower()
     return room_name.endswith(" lobby")
@@ -73,12 +98,17 @@ def read_key_log(room_list):
             continue
 
         base_room = get_base_room(room_name)
+        room_group = get_room_group(room_name)
 
         if is_lobby_row(room_name):
+            # Lobby keys still belong to the base room.
             lobby_keys[base_room] = key_code
 
         elif is_mail_row(room_name):
-            mail_keys[base_room] = key_code
+            # Mail keys can belong to either:
+            # VISTE-1: 107
+            # or VISTE-1: 107 A / B / C / D
+            mail_keys[room_group] = key_code
 
         else:
             room_keys[room_name] = key_code
@@ -93,8 +123,6 @@ def build_rows_from_occupancy(occupancy_list, lobby_keys, mail_keys, room_keys):
     Occupancy file expected:
     Column A = room/bed space
     Column B = resident name
-
-    Assumes row 1 is a header row and data starts on row 2.
     """
     final_rows = []
 
@@ -111,9 +139,14 @@ def build_rows_from_occupancy(occupancy_list, lobby_keys, mail_keys, room_keys):
             continue
 
         base_room = get_base_room(room_space)
+        room_group = get_room_group(room_space)
 
         lobby_key_code = lobby_keys.get(base_room)
-        mail_key_code = mail_keys.get(base_room)
+
+        # Try the A/B/C/D mail key first.
+        # If that does not exist, fall back to the base room mail key.
+        mail_key_code = mail_keys.get(room_group) or mail_keys.get(base_room)
+
         room_key_code = room_keys.get(room_space)
 
         if lobby_key_code:
@@ -184,8 +217,8 @@ def main():
         room_keys
     )
 
-    for row in final_rows:
-        print(row)
+    # for row in final_rows:
+        # print(row)
 
     save_to_excel(output_file_path, final_rows)
 
