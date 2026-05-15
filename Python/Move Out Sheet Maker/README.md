@@ -1,3 +1,5 @@
+# THIS NEEDS TO BE REDON ALL TESTING FOLDERS ARE THE MOST ACCURATE CODE
+
 # FOR ROOMS WITH ONLY 1 KEY
 
 ## Step 1:
@@ -22,3 +24,15 @@ Make sure rows are at the top of the sheet step (Delete row 1 or Column Names)
 
 ## Step 6:
 match rows until no errors appear
+
+
+# FOR ROOMS WITH MORE THAN 1 KEY
+
+## Step 1:
+Dowload the occupancy graph for the building on StarRez
+
+## Step 2:
+Make sure all rows are at the topc of the occupancy sheet (Delete row 1)
+
+Step3:
+
