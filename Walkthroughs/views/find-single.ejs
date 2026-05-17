@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Walkthrough Scheduler</title>
+  <title>Find Single Replacement</title>
 
   <%- include('partials/header.ejs') %>
 </head>
@@ -14,15 +14,15 @@
 
   <div class="container py-5 text-center">
 
-    <h1 class="mb-3">Walkthrough Scheduler</h1>
+    <h1 class="mb-3">Find Single Replacement</h1>
 
     <p class="mb-4">
-      <a href="/team" class="btn btn-outline-primary">
-        Manage Team Members
+      <a href="/" class="btn btn-outline-secondary">
+        Back to Scheduler
       </a>
 
-      <a href="/find-single" class="btn btn-outline-success">
-        Find Single Replacement
+      <a href="/team" class="btn btn-outline-primary">
+        Manage Team Members
       </a>
     </p>
 
@@ -32,28 +32,53 @@
       </div>
     <% } %>
 
-    <% if (assignment) { %>
+    <% if (replacement) { %>
       <div class="card w-auto mx-auto mb-4 shadow-sm">
         <div class="card-body">
-          <h2 class="card-title mb-3">This Week's Assignment</h2>
+          <h2 class="card-title mb-3">Replacement Found</h2>
 
           <p class="card-text">
-            <strong>Date:</strong>
-            <%= assignment.date %>
+            <strong>Name:</strong>
+            <%= replacement.name %>
           </p>
 
           <p class="card-text">
-            <strong>Prom/NQ:</strong>
-            <%= assignment.prom.map(person => person.name).join(" & ") %>
+            <strong>Area:</strong>
+            <%= area === "prom" ? "Prom/NQ" : "Main" %>
           </p>
 
-          <p class="card-text">
-            <strong>Main:</strong>
-            <%= assignment.main.map(person => person.name).join(" & ") %>
-          </p>
+          <div class="alert alert-success mb-0" role="alert">
+            <%= replacement.name %>'s
+            <%= area === "prom" ? "Prom/NQ" : "Main" %>
+            count has been increased by 1.
+          </div>
         </div>
       </div>
     <% } %>
+
+    <div class="card w-auto mx-auto mb-4 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title mb-3">Choose Area</h2>
+
+        <form method="POST" action="/find-single">
+          <div class="mb-3">
+            <label for="area" class="form-label">
+              Which area needs a replacement?
+            </label>
+
+            <select name="area" id="area" class="form-select w-auto mx-auto" required>
+              <option value="">Choose one</option>
+              <option value="prom">Prom/NQ</option>
+              <option value="main">Main</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            Find Replacement
+          </button>
+        </form>
+      </div>
+    </div>
 
     <h2 class="mb-3">Team Members</h2>
 
@@ -65,7 +90,6 @@
             <th>Prom/NQ Count</th>
             <th>Main Count</th>
             <th>Available</th>
-            <th>Availability</th>
             <th>Edit</th>
           </tr>
         </thead>
@@ -94,19 +118,6 @@
               </td>
 
               <td>
-                <form method="POST" action="/toggle" class="m-0">
-                  <input type="hidden" name="id" value="<%= person.id %>">
-
-                  <button
-                    type="submit"
-                    class="btn btn-sm <%= person.available ? 'btn-outline-danger' : 'btn-outline-success' %>"
-                  >
-                    <%= person.available ? "Set Unavailable" : "Set Available" %>
-                  </button>
-                </form>
-              </td>
-
-              <td>
                 <a href="/team/edit/<%= person.id %>" class="btn btn-sm btn-outline-primary">
                   Edit
                 </a>
@@ -115,30 +126,6 @@
           <% }) %>
         </tbody>
       </table>
-    </div>
-
-    <div class="mt-4 d-flex justify-content-center gap-3 flex-wrap">
-
-      <form method="POST" action="/generate">
-        <button type="submit" class="btn btn-primary">
-          Generate Walkers
-        </button>
-      </form>
-
-      <a href="/find-single" class="btn btn-outline-success">
-        Find Single Replacement
-      </a>
-
-      <form method="POST" action="/reset">
-        <button
-          type="submit"
-          class="btn btn-outline-danger"
-          onclick="return confirm('Are you sure you want to reset all counts and history?')"
-        >
-          Reset Counters
-        </button>
-      </form>
-
     </div>
 
   </div>

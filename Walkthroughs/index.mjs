@@ -204,6 +204,90 @@ app.post("/generate", requireLogin, async (req, res) => {
   });
 });
 
+// Find single replacement page
+app.get("/find-single", requireLogin, async (req, res) => {
+  const data = await readData();
+
+  res.render("find-single", {
+    people: data.people,
+    replacement: null,
+    area: null,
+    error: null
+  });
+});
+
+// Generate one replacement for either prom or main
+app.post("/find-single", requireLogin, async (req, res) => {
+  const data = await readData();
+  const area = req.body.area;
+
+  if (area !== "prom" && area !== "main") {
+    return res.render("find-single", {
+      people: data.people,
+      replacement: null,
+      area: null,
+      error: "Please choose either Prom or Main."
+    });
+  }
+
+  const countKey = area === "prom" ? "promCount" : "mainCount";
+
+  const lastAssignmentPeople = [
+    ...(data.lastAssignment?.prom || []),
+    ...(data.lastAssignment?.main || [])
+  ];
+
+  const lastAssignmentIds = lastAssignmentPeople.map(person => person.id);
+
+  let availablePeople = data.people.filter(
+    person => person.available && !lastAssignmentIds.includes(person.id)
+  );
+
+  // If avoiding the last assignment leaves nobody,
+  // allow last assignment people back in because it is unavoidable.
+  if (availablePeople.length < 1) {
+    availablePeople = data.people.filter(person => person.available);
+  }
+
+  if (availablePeople.length < 1) {
+    return res.render("find-single", {
+      people: data.people,
+      replacement: null,
+      area,
+      error: "No available people found."
+    });
+  }
+
+  const replacementGroup = pickLowestRandom(availablePeople, countKey, 1);
+  const replacement = replacementGroup[0];
+
+  replacement[countKey] += 1;
+
+  const replacementRecord = {
+    area,
+    person: {
+      id: replacement.id,
+      name: replacement.name
+    },
+    date: new Date().toLocaleDateString()
+  };
+
+  if (!data.replacementHistory) {
+    data.replacementHistory = [];
+  }
+
+  data.replacementHistory.push(replacementRecord);
+
+  await writeData(data);
+
+  res.render("find-single", {
+    people: data.people,
+    replacement: replacementRecord.person,
+    area,
+    error: null
+  });
+});
+
 app.post("/reset", requireLogin, async (req, res) => {
   const data = await readData();
 
@@ -214,6 +298,7 @@ app.post("/reset", requireLogin, async (req, res) => {
 
   data.lastAssignment = null;
   data.assignmentHistory = [];
+  data.replacementHistory = [];
 
   await writeData(data);
 
@@ -266,6 +351,7 @@ app.post("/team/delete", requireLogin, async (req, res) => {
   await writeData(data);
   res.redirect("/team");
 });
+
 app.get("/team/edit/:id", requireLogin, async (req, res) => {
   const data = await readData();
   const id = Number(req.params.id);
