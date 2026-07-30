@@ -16,9 +16,13 @@
 
     <h1 class="mb-3">Walkthrough Scheduler</h1>
 
-    <p class="mb-4">
+    <p class="mb-4 d-flex justify-content-center gap-2 flex-wrap">
       <a href="/team" class="btn btn-outline-primary">
         Manage Team Members
+      </a>
+
+      <a href="/areas" class="btn btn-outline-secondary">
+        Manage Areas
       </a>
 
       <a href="/find-single" class="btn btn-outline-success">
@@ -32,38 +36,58 @@
       </div>
     <% } %>
 
-    <% if (assignment) { %>
+    <% if (assignment && Array.isArray(assignment.groups)) { %>
       <div class="card w-auto mx-auto mb-4 shadow-sm">
         <div class="card-body">
-          <h2 class="card-title mb-3">This Week's Assignment</h2>
+
+          <h2 class="card-title mb-3">
+            This Week's Assignment
+          </h2>
 
           <p class="card-text">
             <strong>Date:</strong>
             <%= assignment.date %>
           </p>
 
-          <p class="card-text">
-            <strong>Prom/NQ:</strong>
-            <%= assignment.prom.map(person => person.name).join(" & ") %>
-          </p>
+          <% assignment.groups.forEach(group => { %>
+            <p class="card-text">
+              <strong><%= group.areaName %>:</strong>
 
-          <p class="card-text">
-            <strong>Main:</strong>
-            <%= assignment.main.map(person => person.name).join(" & ") %>
-          </p>
+              <% if (group.people && group.people.length > 0) { %>
+                <%= group.people
+                  .map(person => person.name)
+                  .join(" & ") %>
+              <% } else { %>
+                Nobody assigned
+              <% } %>
+            </p>
+          <% }) %>
+
         </div>
       </div>
     <% } %>
 
     <h2 class="mb-3">Team Members</h2>
 
-    <div class="table-responsive d-flex justify-content-center">
-      <table class="table table-bordered table-striped table-hover w-auto align-middle">
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-hover align-middle">
+
         <thead class="table-dark">
           <tr>
             <th>Name</th>
-            <th>Prom/NQ Count</th>
-            <th>Main Count</th>
+
+            <% areas.forEach(area => { %>
+              <th>
+                <%= area.name %> Count
+
+                <% if (!area.active) { %>
+                  <span class="badge text-bg-secondary ms-1">
+                    Inactive
+                  </span>
+                <% } %>
+              </th>
+            <% }) %>
+
             <th>Available</th>
             <th>Availability</th>
             <th>Edit</th>
@@ -71,49 +95,78 @@
         </thead>
 
         <tbody>
+
           <% people.forEach(person => { %>
             <tr>
+
               <td>
                 <%= person.name %>
               </td>
 
-              <td>
-                <%= person.promCount %>
-              </td>
-
-              <td>
-                <%= person.mainCount %>
-              </td>
+              <% areas.forEach(area => { %>
+                <td>
+                  <%= person.counts?.[area.id] ?? 0 %>
+                </td>
+              <% }) %>
 
               <td>
                 <% if (person.available) { %>
-                  <span class="badge text-bg-success">Available</span>
+                  <span class="badge text-bg-success">
+                    Available
+                  </span>
                 <% } else { %>
-                  <span class="badge text-bg-danger">Unavailable</span>
+                  <span class="badge text-bg-danger">
+                    Unavailable
+                  </span>
                 <% } %>
               </td>
 
               <td>
                 <form method="POST" action="/toggle" class="m-0">
-                  <input type="hidden" name="id" value="<%= person.id %>">
+                  <input
+                    type="hidden"
+                    name="id"
+                    value="<%= person.id %>"
+                  >
 
                   <button
                     type="submit"
-                    class="btn btn-sm <%= person.available ? 'btn-outline-danger' : 'btn-outline-success' %>"
+                    class="btn btn-sm <%= person.available
+                      ? 'btn-outline-danger'
+                      : 'btn-outline-success' %>"
                   >
-                    <%= person.available ? "Set Unavailable" : "Set Available" %>
+                    <%= person.available
+                      ? "Set Unavailable"
+                      : "Set Available" %>
                   </button>
                 </form>
               </td>
 
               <td>
-                <a href="/team/edit/<%= person.id %>" class="btn btn-sm btn-outline-primary">
+                <a
+                  href="/team/edit/<%= person.id %>"
+                  class="btn btn-sm btn-outline-primary"
+                >
                   Edit
                 </a>
               </td>
+
             </tr>
           <% }) %>
+
+          <% if (people.length === 0) { %>
+            <tr>
+              <td
+                colspan="<%= areas.length + 4 %>"
+                class="text-center text-muted"
+              >
+                No team members have been added.
+              </td>
+            </tr>
+          <% } %>
+
         </tbody>
+
       </table>
     </div>
 

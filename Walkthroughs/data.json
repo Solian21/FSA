@@ -1,60 +1,104 @@
 {
+  "areas": [
+    {
+      "id": 1,
+      "name": "Prom/NQ",
+      "peopleNeeded": 1,
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Main",
+      "peopleNeeded": 1,
+      "active": true
+    },
+    {
+      "id": 3,
+      "name": "East",
+      "peopleNeeded": 1,
+      "active": true
+    }
+  ],
   "people": [
     {
       "id": 1,
       "name": "Carlos",
-      "promCount": 0,
-      "mainCount": 0,
-      "available": true
+      "available": true,
+      "counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0
+      }
     },
     {
       "id": 2,
       "name": "Abigail",
-      "promCount": 0,
-      "mainCount": 0,
-      "available": true
+      "available": true,
+      "counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0
+      }
     },
     {
       "id": 3,
       "name": "Natalie",
-      "promCount": 0,
-      "mainCount": 0,
-      "available": true
+      "available": true,
+      "counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0
+      }
     },
     {
       "id": 4,
       "name": "Bella",
-      "promCount": 0,
-      "mainCount": 0,
-      "available": true
+      "available": true,
+      "counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0
+      }
     },
     {
       "id": 5,
       "name": "Liz",
-      "promCount": 0,
-      "mainCount": 0,
-      "available": true
+      "available": true,
+      "counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0
+      }
     },
     {
       "id": 6,
       "name": "Griffin",
-      "promCount": 0,
-      "mainCount": 0,
-      "available": true
+      "available": true,
+      "counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0
+      }
     },
     {
       "id": 7,
       "name": "Harsh",
-      "promCount": 0,
-      "mainCount": 0,
-      "available": true
+      "available": true,
+      "counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0
+      }
     },
     {
       "id": 8,
       "name": "Juju",
-      "promCount": 0,
-      "mainCount": 0,
-      "available": true
+      "available": true,
+      "counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0
+      }
     }
   ],
   "lastAssignment": null,

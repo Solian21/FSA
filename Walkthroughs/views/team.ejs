@@ -16,9 +16,13 @@
 
     <h1 class="mb-3">Manage Team</h1>
 
-    <p class="mb-4">
+    <p class="mb-4 d-flex justify-content-center gap-2 flex-wrap">
       <a href="/" class="btn btn-outline-primary">
         Back to Scheduler
+      </a>
+
+      <a href="/areas" class="btn btn-outline-secondary">
+        Manage Areas
       </a>
     </p>
 
@@ -32,7 +36,11 @@
       <div class="card-body">
         <h2 class="card-title mb-3">Add Team Member</h2>
 
-        <form method="POST" action="/team/add" class="d-flex justify-content-center gap-2 flex-wrap">
+        <form
+          method="POST"
+          action="/team/add"
+          class="d-flex justify-content-center gap-2 flex-wrap"
+        >
           <input
             type="text"
             name="name"
@@ -50,13 +58,24 @@
 
     <h2 class="mb-3">Current Team Members</h2>
 
-    <div class="table-responsive d-flex justify-content-center">
-      <table class="table table-bordered table-striped table-hover w-auto align-middle">
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-hover align-middle">
         <thead class="table-dark">
           <tr>
             <th>Name</th>
-            <th>Prom/NQ Count</th>
-            <th>Main Count</th>
+
+            <% areas.forEach(area => { %>
+              <th>
+                <%= area.name %> Count
+
+                <% if (!area.active) { %>
+                  <span class="badge text-bg-secondary ms-1">
+                    Inactive
+                  </span>
+                <% } %>
+              </th>
+            <% }) %>
+
             <th>Available</th>
             <th>Edit</th>
             <th>Remove</th>
@@ -70,32 +89,40 @@
                 <%= person.name %>
               </td>
 
-              <td>
-                <%= person.promCount %>
-              </td>
-
-              <td>
-                <%= person.mainCount %>
-              </td>
+              <% areas.forEach(area => { %>
+                <td>
+                  <%= person.counts?.[area.id] ?? 0 %>
+                </td>
+              <% }) %>
 
               <td>
                 <% if (person.available) { %>
-                  <span class="badge text-bg-success">Available</span>
+                  <span class="badge text-bg-success">
+                    Available
+                  </span>
                 <% } else { %>
-                  <span class="badge text-bg-danger">Unavailable</span>
+                  <span class="badge text-bg-danger">
+                    Unavailable
+                  </span>
                 <% } %>
               </td>
 
-              <!-- ✅ NEW EDIT BUTTON -->
               <td>
-                <a href="/team/edit/<%= person.id %>" class="btn btn-sm btn-outline-primary">
+                <a
+                  href="/team/edit/<%= person.id %>"
+                  class="btn btn-sm btn-outline-primary"
+                >
                   Edit
                 </a>
               </td>
 
               <td>
                 <form method="POST" action="/team/delete" class="m-0">
-                  <input type="hidden" name="id" value="<%= person.id %>">
+                  <input
+                    type="hidden"
+                    name="id"
+                    value="<%= person.id %>"
+                  >
 
                   <button
                     type="submit"
@@ -108,6 +135,17 @@
               </td>
             </tr>
           <% }) %>
+
+          <% if (people.length === 0) { %>
+            <tr>
+              <td
+                colspan="<%= areas.length + 4 %>"
+                class="text-center text-muted"
+              >
+                No team members have been added.
+              </td>
+            </tr>
+          <% } %>
         </tbody>
       </table>
     </div>

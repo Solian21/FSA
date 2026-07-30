@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Manage Areas</title>
+
+  <%- include('partials/header.ejs') %>
+</head>
+
+<body>
+
+  <div class="container py-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>Manage Areas</h1>
+
+      <a href="/" class="btn btn-outline-primary">
+        Back to Scheduler
+      </a>
+    </div>
+
+    <% if (error) { %>
+      <div class="alert alert-danger">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <div class="card mb-4 shadow-sm">
+      <div class="card-body">
+        <h2 class="h4 mb-3">Add Area</h2>
+
+        <form method="POST" action="/areas/add" class="row g-3">
+          <div class="col-md-6">
+            <label for="name" class="form-label">
+              Area Name
+            </label>
+
+            <input
+              type="text"
+              id="name"
+              name="name"
+              class="form-control"
+              placeholder="Example: Main"
+              required
+            >
+          </div>
+
+          <div class="col-md-4">
+            <label for="peopleNeeded" class="form-label">
+              People Needed
+            </label>
+
+            <input
+              type="number"
+              id="peopleNeeded"
+              name="peopleNeeded"
+              class="form-control"
+              min="1"
+              step="1"
+              value="1"
+              required
+            >
+          </div>
+
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-success w-100">
+              Add Area
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>Area</th>
+            <th>People Needed</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <% areas.forEach(area => { %>
+            <tr>
+              <td>
+                <%= area.name %>
+              </td>
+
+              <td>
+                <%= area.peopleNeeded %>
+              </td>
+
+              <td>
+                <% if (area.active) { %>
+                  <span class="badge text-bg-success">
+                    Active
+                  </span>
+                <% } else { %>
+                  <span class="badge text-bg-secondary">
+                    Inactive
+                  </span>
+                <% } %>
+              </td>
+
+              <td>
+                <div class="d-flex gap-2 flex-wrap">
+                  <a
+                    href="/areas/edit/<%= area.id %>"
+                    class="btn btn-sm btn-outline-primary"
+                  >
+                    Edit
+                  </a>
+
+                  <form method="POST" action="/areas/delete">
+                    <input
+                      type="hidden"
+                      name="id"
+                      value="<%= area.id %>"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-danger"
+                      onclick="return confirm('Delete <%= area.name %> and its counters?')"
+                    >
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+
+          <% if (areas.length === 0) { %>
+            <tr>
+              <td colspan="4" class="text-center text-muted">
+                No areas have been added.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <%- include('partials/footer') %>
+
+</body>
+
+</html>
