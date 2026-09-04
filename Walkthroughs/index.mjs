@@ -4,6 +4,9 @@ import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import session from "express-session";
+import pg from "pg";
+
+const { Pool } = pg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +15,15 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_FILE = path.join(__dirname, "data.json");
 const TEMP_DATA_FILE = path.join(__dirname, "data.tmp.json");
+const DATABASE_URL = process.env.DATABASE_URL;
+const dbPool = DATABASE_URL
+  ? new Pool({
+      connectionString: DATABASE_URL,
+      // Render Postgres requires SSL for external connections.
+      ssl: { rejectUnauthorized: false }
+    })
+  : null;
+let databaseReady;
 
 const SITE_PASSWORD = process.env.PASSWORD;
 const SESSION_SECRET = process.env.SESSION_SECRET || "backup-secret";
@@ -65,8 +77,34 @@ function asyncHandler(routeHandler) {
 }
 
 async function readData() {
-  const raw = await fs.readFile(DATA_FILE, "utf-8");
-  const data = JSON.parse(raw);
+  let data;
+
+  if (dbPool) {
+    if (!databaseReady) {
+      databaseReady = dbPool.query(`
+        CREATE TABLE IF NOT EXISTS walkthrough_data (
+          id INTEGER PRIMARY KEY,
+          data JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+    }
+    await databaseReady;
+
+    const result = await dbPool.query(
+      "SELECT data FROM walkthrough_data WHERE id = 1"
+    );
+
+    if (result.rows.length > 0) {
+      data = result.rows[0].data;
+    } else {
+      const raw = await fs.readFile(DATA_FILE, "utf-8");
+      data = JSON.parse(raw);
+    }
+  } else {
+    const raw = await fs.readFile(DATA_FILE, "utf-8");
+    data = JSON.parse(raw);
+  }
 
   /*
    * Create default areas if this is an older data.json file.
@@ -205,11 +243,42 @@ async function readData() {
     };
   }
 
+  // Seed a newly-created database from the checked-in starter data once.
+  if (dbPool) {
+    const result = await dbPool.query(
+      "SELECT 1 FROM walkthrough_data WHERE id = 1"
+    );
+    if (result.rows.length === 0) {
+      await writeData(data);
+    }
+  }
+
   return data;
 }
 
 async function writeData(data) {
   const formattedData = JSON.stringify(data, null, 2);
+
+  if (dbPool) {
+    if (!databaseReady) {
+      databaseReady = dbPool.query(`
+        CREATE TABLE IF NOT EXISTS walkthrough_data (
+          id INTEGER PRIMARY KEY,
+          data JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+    }
+    await databaseReady;
+    await dbPool.query(
+      `INSERT INTO walkthrough_data (id, data, updated_at)
+       VALUES (1, $1::jsonb, NOW())
+       ON CONFLICT (id)
+       DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+      [formattedData]
+    );
+    return;
+  }
 
   /*
    * Write to a temporary file first, then replace data.json.

@@ -39,19 +39,14 @@
                                             required>
                                     </div>
 
-                                    <!-- Prom Count -->
-                                    <div class="mb-3">
-                                        <label class="form-label">Prom/NQ Count</label>
-                                        <input type="number" name="promCount" class="form-control"
-                                            value="<%= person.promCount %>" min="0" required>
-                                    </div>
-
-                                    <!-- Main Count -->
-                                    <div class="mb-3">
-                                        <label class="form-label">Main Count</label>
-                                        <input type="number" name="mainCount" class="form-control"
-                                            value="<%= person.mainCount %>" min="0" required>
-                                    </div>
+                                    <!-- Area counts -->
+                                    <% areas.forEach(area => { %>
+                                        <div class="mb-3">
+                                            <label class="form-label"><%= area.name %> Count</label>
+                                            <input type="number" name="count_<%= area.id %>" class="form-control"
+                                                value="<%= person.counts?.[area.id] ?? 0 %>" min="0" required>
+                                        </div>
+                                    <% }) %>
 
                                     <!-- Availability -->
                                     <div class="form-check mb-4">

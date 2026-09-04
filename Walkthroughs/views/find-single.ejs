@@ -44,12 +44,12 @@
 
           <p class="card-text">
             <strong>Area:</strong>
-            <%= area === "prom" ? "Prom/NQ" : "Main" %>
+            <%= area?.name %>
           </p>
 
           <div class="alert alert-success mb-0" role="alert">
             <%= replacement.name %>'s
-            <%= area === "prom" ? "Prom/NQ" : "Main" %>
+            <%= area?.name %>
             count has been increased by 1.
           </div>
         </div>
@@ -66,10 +66,11 @@
               Which area needs a replacement?
             </label>
 
-            <select name="area" id="area" class="form-select w-auto mx-auto" required>
+            <select name="areaId" id="area" class="form-select w-auto mx-auto" required>
               <option value="">Choose one</option>
-              <option value="prom">Prom/NQ</option>
-              <option value="main">Main</option>
+              <% areas.forEach(areaItem => { %>
+                <option value="<%= areaItem.id %>"><%= areaItem.name %></option>
+              <% }) %>
             </select>
           </div>
 
@@ -87,8 +88,9 @@
         <thead class="table-dark">
           <tr>
             <th>Name</th>
-            <th>Prom/NQ Count</th>
-            <th>Main Count</th>
+            <% areas.forEach(areaItem => { %>
+              <th><%= areaItem.name %> Count</th>
+            <% }) %>
             <th>Available</th>
             <th>Edit</th>
           </tr>
@@ -101,13 +103,9 @@
                 <%= person.name %>
               </td>
 
-              <td>
-                <%= person.promCount %>
-              </td>
-
-              <td>
-                <%= person.mainCount %>
-              </td>
+              <% areas.forEach(areaItem => { %>
+                <td><%= person.counts?.[areaItem.id] ?? 0 %></td>
+              <% }) %>
 
               <td>
                 <% if (person.available) { %>
