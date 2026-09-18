@@ -34,6 +34,13 @@ if (!SITE_PASSWORD) {
   process.exit(1);
 }
 
+if (process.env.NODE_ENV === "production" && !dbPool) {
+  console.error(
+    "Missing DATABASE_URL. Production requires PostgreSQL so data is not lost on redeploy."
+  );
+  process.exit(1);
+}
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -77,20 +84,29 @@ function asyncHandler(routeHandler) {
   };
 }
 
+async function ensureDatabase() {
+  if (!dbPool) {
+    return;
+  }
+
+  if (!databaseReady) {
+    databaseReady = dbPool.query(`
+      CREATE TABLE IF NOT EXISTS walkthrough_data (
+        id INTEGER PRIMARY KEY,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+  }
+
+  await databaseReady;
+}
+
 async function readData() {
   let data;
 
   if (dbPool) {
-    if (!databaseReady) {
-      databaseReady = dbPool.query(`
-        CREATE TABLE IF NOT EXISTS walkthrough_data (
-          id INTEGER PRIMARY KEY,
-          data JSONB NOT NULL,
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `);
-    }
-    await databaseReady;
+    await ensureDatabase();
 
     const result = await dbPool.query(
       "SELECT data FROM walkthrough_data WHERE id = 1"
@@ -261,23 +277,20 @@ async function writeData(data) {
   const formattedData = JSON.stringify(data, null, 2);
 
   if (dbPool) {
-    if (!databaseReady) {
-      databaseReady = dbPool.query(`
-        CREATE TABLE IF NOT EXISTS walkthrough_data (
-          id INTEGER PRIMARY KEY,
-          data JSONB NOT NULL,
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `);
-    }
-    await databaseReady;
-    await dbPool.query(
+    await ensureDatabase();
+    const result = await dbPool.query(
       `INSERT INTO walkthrough_data (id, data, updated_at)
        VALUES (1, $1::jsonb, NOW())
        ON CONFLICT (id)
-       DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+       DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+       RETURNING updated_at`,
       [formattedData]
     );
+
+    if (result.rowCount !== 1) {
+      throw new Error("The updated data was not written to PostgreSQL.");
+    }
+
     return;
   }
 
@@ -1046,4 +1059,9 @@ app.use((error, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
+  console.log(
+    dbPool
+      ? "Persistent storage: PostgreSQL"
+      : "Persistent storage: local data.json"
+  );
 });
