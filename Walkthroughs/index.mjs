@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import session from "express-session";
 import pg from "pg";
+import { pickLowestRandom } from "./selection.mjs";
 
 const { Pool } = pg;
 
@@ -288,43 +289,6 @@ async function writeData(data) {
   await fs.rename(TEMP_DATA_FILE, DATA_FILE);
 }
 
-function pickLowestRandom(people, areaId, amountNeeded) {
-  const selected = [];
-
-  while (selected.length < amountNeeded) {
-    const remaining = people.filter(
-      person => !selected.some(selectedPerson => selectedPerson.id === person.id)
-    );
-
-    if (remaining.length === 0) {
-      break;
-    }
-
-    const lowestCount = Math.min(
-      ...remaining.map(person => person.counts?.[areaId] ?? 0)
-    );
-
-    const tiedPeople = remaining.filter(
-      person => (person.counts?.[areaId] ?? 0) === lowestCount
-    );
-
-    /*
-     * Randomize people who have the same count.
-     */
-    tiedPeople.sort(() => Math.random() - 0.5);
-
-    for (const person of tiedPeople) {
-      if (selected.length >= amountNeeded) {
-        break;
-      }
-
-      selected.push(person);
-    }
-  }
-
-  return selected;
-}
-
 function getLastAssignmentIds(data) {
   return new Set(
     (data.lastAssignment?.groups || []).flatMap(group =>
@@ -477,17 +441,12 @@ app.post(
 
     const previousIds = getLastAssignmentIds(data);
 
-    let availablePeople = allAvailablePeople.filter(
-      person => !previousIds.has(person.id)
-    );
-
     /*
-     * If there are not enough people after excluding the previous assignment,
-     * allow those people back into the selection.
+     * Keep everyone in the candidate pool so manual counts are always
+     * considered. People from the previous assignment are only
+     * deprioritized when counts are tied.
      */
-    if (availablePeople.length < totalPeopleNeeded) {
-      availablePeople = allAvailablePeople;
-    }
+    const availablePeople = allAvailablePeople;
 
     const selectedIds = new Set();
     const groups = [];
@@ -500,7 +459,8 @@ app.post(
       const selectedPeople = pickLowestRandom(
         candidates,
         area.id,
-        area.peopleNeeded
+        area.peopleNeeded,
+        previousIds
       );
 
       if (selectedPeople.length < area.peopleNeeded) {
@@ -577,21 +537,11 @@ app.post(
 
     const lastAssignmentIds = getLastAssignmentIds(data);
 
-    let availablePeople = data.people.filter(
-      person =>
-        person.available &&
-        !lastAssignmentIds.has(person.id)
+    // Counts are primary; people from the current assignment are only
+    // deprioritized when counts are tied.
+    const availablePeople = data.people.filter(
+      person => person.available
     );
-
-    /*
-     * If everybody available is already in the current assignment,
-     * allow assigned people back into the candidate list.
-     */
-    if (availablePeople.length === 0) {
-      availablePeople = data.people.filter(
-        person => person.available
-      );
-    }
 
     if (availablePeople.length === 0) {
       return renderFindSingle(res, data, {
@@ -603,7 +553,8 @@ app.post(
     const replacementGroup = pickLowestRandom(
       availablePeople,
       selectedArea.id,
-      1
+      1,
+      lastAssignmentIds
     );
 
     const replacement = replacementGroup[0];
